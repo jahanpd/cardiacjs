@@ -1,4 +1,5 @@
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs-node-gpu';
+import { saveAs } from 'file-saver';
 
 const seed = 64;
 const init = tf.initializers.heUniform(seed);
@@ -277,24 +278,21 @@ export class AttentionModel{
     this.init(config);
   }
   forward(x){
-    this.toggleDropout(false);
     const [bij, out, enckey, masks, embed] = this.model.predict(x);
-    //const bij2 = this.bijector.reduce((pv, cv, i) => cv.apply([pv], {forward:true}), embed);
-    //const invert = this.bijector.reverse().reduce((pv, cv, i) => cv.apply([pv], {forward:false}), bij);
-    const invertout = this.bijector.reverse().reduce((pv, cv, i) => cv.apply([pv], {forward:false}), out);
-    const recon = this.embed.reverse(invertout);
-    //console.log('d', x.shape, x.toString());
+    const bij2 = this.bijector.reduce((pv, cv, i) => cv.apply([pv], {forward:true}), embed);
+    const invert = this.bijector.reverse().reduce((pv, cv, i) => cv.apply([pv], {forward:false}), out);
+    const recon = this.embed.reverse(invert);
+    console.log('d', x.shape, x.toString());
     //console.log('e', embed.shape, embed.toString());
     //console.log('bij', bij.shape, bij.toString());
     //console.log('bij2', bij2.shape, bij2.toString());
     //console.log('ehat', invert.shape, invert.toString());
-    //console.log('recon', recon.shape, recon.toString());
-    // console.log('mask', masks.slice(2,1).shape, masks.slice(2,1).toString());
-    this.toggleDropout(true);
-    return out, recon
+    console.log('recon', recon.shape, recon.toString());
+    //console.log('mask', masks.slice(2,1).shape, masks.slice(2,1).toString());
+    return out, invert
   }
 
-  async train(epochs, ds, tfvis){
+  async train(epochs, ds, vis){
     let lossSave = [];
     let history = {
       values:[lossSave],
@@ -328,7 +326,7 @@ export class AttentionModel{
       });
       let avg = lossAvg.reduce((a, b) => a + b, 0) / lossAvg.length;
       lossSave.push({x:epoch, y:avg});
-      if (tfvis){tfvis.render.linechart(surface, history, options)};
+      if (vis){tfvis.render.linechart(surface, history, options)};
       console.log('Epoch', epoch, ':', avg);
     }
   }
@@ -414,14 +412,7 @@ export class AttentionModel{
     this.model = tf.model({inputs:input, outputs:[bij, out, enckey, masks, embed]});
     this.bijector = bijection;
     this.embed = this.model.layers.filter(l => l.name.includes('embed'))[0];
-  }
-
-  toggleDropout(bool){
-    this.model.layers.forEach((layer) => {
-      if (layer.name.includes('MaskLayer')){
-        layer.dropout = bool;
-      }
-    })
+    this.maskidx = this.model.layers.findIndex((el) => el.name == 'MaskLayer')
   }
 }
 
