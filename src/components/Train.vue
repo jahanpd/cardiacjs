@@ -34,7 +34,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as tfvis from '@tensorflow/tfjs-vis';
 import { AttentionModel, BijectorLayer } from '../assets/model/model';
 import { db } from '../assets/db';
-import io from 'socket.io-client';
+import io from 'socket.io';
 
 await tf.setBackend('cpu');
 

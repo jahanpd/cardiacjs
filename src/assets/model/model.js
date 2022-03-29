@@ -93,8 +93,14 @@ export class EmbedLayer extends tf.layers.Layer {
     return [... inputShape, ... [this.ndim]]; 
   }
   call(input) {
-    return tf.tidy(() => input[0].expandDims(2)
-          .add(this.shift.read()).mul(this.scale.read()));
+    return tf.tidy(() => {
+      let x = input[0];
+      let idx = input[1];
+      let embed = tf.where(x.isNaN(), -1.0, x).expandDims(2)
+          .add(this.shift.read()).mul(this.scale.read());
+      let res = await tf.booleanMaskAsync(embed, idx, 1);
+      return res
+    });
   }
   reverse(input){
     return tf.tidy(() => input.mul(this.scale.read().reciprocal()).sub(this.shift.read())
@@ -240,8 +246,8 @@ export class AttentionLayer extends tf.layers.Layer {
       tensor => tensor.matMul(this.vw.read()).add(this.vb.read())
     ), 1).reshape(ks).transpose([0,3,1,2]); // (b, h, f1, d)
 
-    let qk = q.matMul(k, false, true).softplus(); // (b, h, f1, f2)
-    let attn = qk.mul(mask).div(qk.sum(-1, true).add(1e-8)); // (b, h, f1, f2)
+    let qk = q.matMul(k, false, true).softplus().mul(mask); // (b, h, f1, f2)
+    let attn = qk.div(qk.sum(-1, true).add(1e-8)); // (b, h, f1, f2)
 
     let out = attn.matMul(v).transpose([0,2,3,1])
       .reshape([-1, qs[1], this.heads*this.ndim]); // (b, f1, d*h)

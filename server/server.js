@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs-node-gpu';
-import { AttentionModel } from './src/assets/model/model.js';
+import { AttentionModel } from '../src/assets/model/model.js';
 
 import * as http from 'http';
 import { Server } from 'socket.io';
